@@ -19,7 +19,6 @@ function saveAPark($id, $name, $address, $wh){
 function chekPark($name){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $check = $mysqli->query("SELECT * FROM `autopark` WHERE `name` = '$name'");
-    //print_r($check);
     if($check->num_rows>0) return false;
     else return true;
 }
