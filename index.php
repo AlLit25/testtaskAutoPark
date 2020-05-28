@@ -1,23 +1,30 @@
 <?php
 session_start();
 
-function saveAPark($id, $name, $address, $wh)
-{
+function saveAPark($id, $name, $address, $wh){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
-    if ($id == NULL) {
-        $save = "INSERT INTO `autopark` (`id`, `name`, `address`, `workingHours`) VALUES (NULL, '$name', '" . $address . "', '" . $wh . "');";
-    } else {
-        $save = "UPDATE `autopark` SET `name` = '$name', `address` = '$address', `workingHours` = '$wh' WHERE `autopark`.`id` = $id;";
-    }
+        if ($id == NULL) {
+            $save = "INSERT INTO `autopark` (`id`, `name`, `address`, `workingHours`) VALUES (NULL, '$name', '" . $address . "', '" . $wh . "');";
+        } 
+        else {
+            $save = "UPDATE `autopark` SET `name` = '$name', `address` = '$address', `workingHours` = '$wh' WHERE `autopark`.`id` = $id;";
+        }
+    
+        $result = $mysqli->query($save);
+        $mysqli->close();
+        if ($result) return false;
+        else return true;
+}
 
-    $result = $mysqli->query($save);
-    $mysqli->close();
-    if ($result) return false;
+function chekPark($name){
+    $mysqli = new mysqli("localhost", "root", "", "autoparktest");
+    $check = $mysqli->query("SELECT * FROM `autopark` WHERE `name` = '$name'");
+    //print_r($check);
+    if($check->num_rows>0) return false;
     else return true;
 }
 
-function editAPArk($id)
-{
+function editAPArk($id){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $search = "SELECT * FROM `autopark` WHERE `id` = $id";
 
@@ -31,8 +38,7 @@ function editAPArk($id)
     }
 }
 
-function deleteAPArk($id)
-{
+function deleteAPArk($id){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $del = "DELETE FROM `autopark` WHERE `id` = $id";
 
@@ -56,9 +62,12 @@ if (isset($_POST["saveAPark"])) {
     $_SESSION["workingHours"] = $wh;
 
     if ($name == "" || $address == "") $error = true;
-    else $error = saveAPark($id, $name, $address, $wh);
+    else {
+        if(chekPark($name)) $error = saveAPark($id, $name, $address, $wh);
+        else $error = true;
+    }
 
-    if ($error) $errorMessage = "Не удалось корректно сделать запись в базу данных";
+    if ($error) $errorMessage = "Неудачно(Имя автопарка должно быть уникальным)";
     else {
         session_destroy();
         header("Location: index.php");
@@ -67,7 +76,7 @@ if (isset($_POST["saveAPark"])) {
 
 if (isset($_GET['editAPark'])) {
     $id = $_GET['editAPark'];
-    editAuto($id);
+    editAPArk($id);
 }
 
 if (isset($_GET['delAPark'])) {
@@ -78,28 +87,30 @@ if (isset($_GET['delAPark'])) {
     else  header("Location: index.php");
 }
 
-function saveAuto($id, $number, $driver)
-{
+function saveAuto($id, $number, $driver){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
-    $check = "SELECT * FROM `auto` WHERE `id` = $id";
     $save = "INSERT INTO `auto` (`id`, `number`, `driver`) VALUES (NULL, '$number', '" . $driver . "');";
     $update = "UPDATE `auto` SET `number` = '$number', `driver` = '$driver' WHERE `auto`.`id` = $id;";
 
-    $result = $mysqli->query($check);
-    if ($result->num_rows > 0) {
-        $resultUp = $mysqli->query($update);
+    $check = $mysqli->query("SELECT * FROM `auto` WHERE `id` = $id");
+    echo $check;
+    if ($check->num_rows > 0) {
+        print_r($check);
+        $result = $mysqli->query($update);
         $mysqli->close();
-        if ($resultUp) return false;
+        if ($result) return false;
         else return true;
-    } else {
-        $mysqli->query($save);
+    } 
+    else {
+        $chekErrorDB = $mysqli->query($save);
         $mysqli->close();
-        return false;
+        if($chekErrorDB) return false;
+        else return true;
+        
     }
 }
 
-function editAuto($id)
-{
+function editAuto($id){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $search = "SELECT * FROM `auto` WHERE `id` = $id";
 
@@ -112,8 +123,7 @@ function editAuto($id)
     }
 }
 
-function delAuto($id)
-{
+function delAuto($id){
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $del = "DELETE FROM `auto` WHERE `id` = $id";
 
@@ -135,7 +145,7 @@ if (isset($_POST["saveAuto"])) {
     $_SESSION["number"] = $number;
     $_SESSION["driver"] = $driver;
 
-    if ($number == "" || $driver == "") $errorAuto = true;
+    if ($number == 0 || $driver == "") $errorAuto = true;
     else $errorAuto = saveAuto($id, $number, $driver);
 
     if ($errorAuto) $errorMessageA = "Не удалось сделать запись в базу данных (номер машины должен быть уникальным)";
@@ -158,15 +168,11 @@ if (isset($_GET['delAuto'])) {
     else  header("Location: index.php");
 }
 
-function delAP($id)
-{
+function delAP($id) {
     $mysqli = new mysqli("localhost", "root", "", "autoparktest");
     $del = "DELETE FROM `autopark_auto` WHERE `id` = $id";
     $mysqli->query($del);
     $mysqli->close();
-
-    //if ($result) return false;
-    //else return true;
 }
 
 if (isset($_GET["delAP"])) {
@@ -175,6 +181,57 @@ if (isset($_GET["delAP"])) {
     delAP($id);
 
     header("Location: index.php?showAuto=$idP");
+}
+
+if(isset($_POST["addConnPA"])){
+    $namePark = $_POST["nameApConn"];
+    $numberAuto = $_POST["numberAutoConn"];
+
+    if($namePark == "" || $numberAuto == 0){
+        $errorRecord = true;
+        $errorConnParkAuto = "Вы не выбрали все поля для заполнения";
+    }
+    else{
+        $mysqli = new mysqli("localhost", "root", "", "autoparktest");
+        $selectIdPark = $mysqli->query("SELECT `id` FROM `autopark` WHERE `name` = '".$namePark."'");
+        $selectIdAuto = $mysqli->query("SELECT `id` FROM `auto` WHERE `number` = $numberAuto");
+
+        while($sip = $selectIdPark->fetch_assoc()){
+            $idP = $sip["id"];
+        }
+        while($sia = $selectIdAuto->fetch_assoc()){
+            $idA = $sia["id"];
+        }
+    
+        $errorRecord = false;
+    
+    
+    
+        $checkData = $mysqli->query("SELECT * FROM `autopark_auto` WHERE `idpark` = $idP AND `idauto` = $idA");
+        if($checkData->num_rows>0) $errorRecord = true;
+        else $mysqli->query("INSERT INTO `autopark_auto` (`id`, `idpark`, `idauto`) VALUES (NULL, '$idP', '$idA')");
+        $mysqli->close();
+
+        if($errorRecord) $errorConnParkAuto = "Эта машина уже есть в этом автопарке!";
+        else header("Location: index.php?showAuto=$idP");
+    }   
+}
+
+if(isset($_GET["type"])){
+    $choice = $_GET["type"];
+    if($choice == "manager"){
+        $_SESSION["typeM"] = "hidden";
+        $_SESSION["typeD"] = "";
+    }
+    
+    if($choice == "driver"){
+        $_SESSION["typeM"] = "";
+        $_SESSION["typeD"] = "hidden";
+    }
+    if($choice == "all"){
+        $_SESSION["typeM"] = "";
+        $_SESSION["typeD"] = "";
+    }
 }
 
 ?>
@@ -190,9 +247,18 @@ if (isset($_GET["delAP"])) {
 </head>
 
 <body class=" container">
-    <h1>Автопарк</h1>
     <div class="row">
+        <p>Отобразить возможности: </p>
+    <a class="pr-2 pl-2" href="?type=manager">Менеджера</a>
+    <a class="pr-2 pl-2" href="?type=driver">Водителя</a>
+    <a class="pl-2" href="?type=all">Админ</a>
+    </div>
+    
+    <h1>Автопарки</h1>
+    <div class="row">
+    
         <form class=" col-6" method="POST">
+            <span <?= $_SESSION["typeD"];?>>
             <div class=" row pb-2">
                 <label for="name" class=" col-3">Название</label>
                 <input class=" form-control col-9" type="text" name="name" value="<?= $_SESSION["name"] ?>">
@@ -207,7 +273,7 @@ if (isset($_GET["delAP"])) {
             </div>
             <p class=" text-danger"><?= $errorMessage ?></p>
             <button class="btn btn-success mb-3" name="saveAPark">Сохранить</button>
-
+             </span>
             <div>
                 <div class=" row">
                     <label class=" col-3">Название</label>
@@ -228,8 +294,10 @@ if (isset($_GET["delAP"])) {
                             </label>
                             <label class=" col-3"><?= $row["address"] ?></label>
                             <label class=" col-3"><?= $row["workingHours"] ?></label>
-                            <a href="?editAPark=<?= $row["id"] ?>" class="mr-2">Изменить</a>
+                            <span <?= $_SESSION["typeD"];?>>
+                            <a href="?editAPark=<?= $row["id"] ?>" class="mr-1">Изменить</a>
                             <a href="?delAPark=<?= $row["id"] ?>">Удалить</a>
+                            </span>
                         </div>
                 <?
                     }
@@ -239,13 +307,12 @@ if (isset($_GET["delAP"])) {
                 ?>
             </div>
         </form>
-
         <div class="col-6 text-center">
             <h5>Авто в автопарке</h5>
             <div class=" justify-content-center">
                 <label class="col-4">Автопарк</label>
                 <label class="col-4">Номер машины</label>
-                <label class="col-2"></label>
+                <span <?= $_SESSION["typeD"];?>><label class="col-2"></label></span>
                 <br>
                 <?
                 if (isset($_GET["showAuto"])) {
@@ -272,7 +339,10 @@ if (isset($_GET["delAP"])) {
                             <? }
                             }
                             ?>
-                            <a class="col-2" href="?delAP=<?= $row["id"] ?>">Удалить</a>
+                            <span <?= $_SESSION["typeD"];?>>
+                                <a class="col-2" href="?delAP=<?= $row["id"] ?>">Удалить</a>
+                            </span>
+                            
                 <?
                         }
                         $result->free();
@@ -281,8 +351,9 @@ if (isset($_GET["delAP"])) {
                 }
                 ?>
             </div>
-            <span>
+            <span <?=$_SESSION["typeD"];?>>
                 <form class="row justify-content-center" method="POST">
+                    <p class=" text-danger col-11"><?= $errorConnParkAuto?></p>
                     <select class="form-control col-4 mr-2" name="nameApConn">
                         <option disabled selected>Имя автопарка</option>
                         <?
@@ -308,6 +379,7 @@ if (isset($_GET["delAP"])) {
                         }
                         ?>
                     </select>
+                    
                     <button class=" col-2 btn btn-success" name="addConnPA">Добавить</button>
                 </form>
             </span>
@@ -318,6 +390,7 @@ if (isset($_GET["delAP"])) {
 
     <h1>Автомобили</h1>
     <form class="col-10 pb-3" method="POST">
+    <span <?= $_SESSION["typeM"];?>>
         <div class=" row pb-2">
             <div class=" text-center col-4">
                 <label for="number">Номер машины</label>
@@ -331,7 +404,7 @@ if (isset($_GET["delAP"])) {
         </div>
         <p class=" text-danger"><?= $errorMessageA ?></p>
         <button class="btn btn-success" name="saveAuto">Сохранить </button>
-
+    </span>
         <div class=" row">
             <label class=" col-3">Номер машины</label>
             <label class=" col-3">Имя водителя</label>
@@ -345,8 +418,13 @@ if (isset($_GET["delAP"])) {
                 <div class="row pb-2">
                     <label class=" col-3"><?= $row["number"] ?></label>
                     <label class=" col-3"><?= $row["driver"] ?></label>
-                    <a href="?editAuto=<?= $row["id"] ?>" class="mr-2">Изменить</a>
-                    <a href="?delAuto=<?= $row["id"] ?>">Удалить</a>
+                    <span <?= $_SESSION["typeM"];?>>
+                        <a href="?editAuto=<?= $row["id"] ?>" class="mr-2">Изменить</a>
+                    </span>
+                    <span <?= $typeD;?>>
+                        <a href="?delAuto=<?= $row["id"] ?>">Удалить</a>
+                    </span>
+                    
                 </div>
         <?
             }
@@ -356,7 +434,13 @@ if (isset($_GET["delAP"])) {
         ?>
     </form>
     <hr>
-
+<footer style="padding-top:150px;">
+    <div class="row justify-content-around ">
+    <label class=" col-5 border-bottom text-center"><b>"Test task AutoPark"</b> created by Lytvin Aleksandr</label>
+    <label class=" col-5 border-bottom text-center text-success"> My contact: +380972687438, allitwin25@gamil.com</label>
+    </div>
+    <p class="text-center">2020</p>
+</footer>
 </body>
 
 </html>
