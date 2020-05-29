@@ -441,5 +441,5 @@ if(isset($_GET["type"])){
     <p class="text-center">2020</p>
 </footer>
 </body>
-
+    
 </html>
